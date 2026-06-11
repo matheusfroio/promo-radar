@@ -1,0 +1,75 @@
+# FROIO AUTOMAÇÃO — Guia de instalação
+
+## O que você precisa ter instalado
+- Python 3.10 ou superior (baixe em python.org)
+
+---
+
+## Passo 1 — Instalar as bibliotecas
+
+Abra o terminal (Prompt de Comando no Windows) na pasta do projeto e execute:
+
+    pip install requests pillow openai schedule facebook-sdk python-dotenv
+
+---
+
+## Passo 2 — Preencher o config.env
+
+Abra o arquivo `config.env` com o Bloco de Notas e preencha:
+
+    ML_CLIENT_ID        → 6650060203186732 (já preenchido)
+    ML_CLIENT_SECRET    → o secret que você copiou do ML Developers
+    ML_AFILIADO_TAG     → matheusfroio (já preenchido)
+    OPENAI_API_KEY      → a chave sk-... que você criou na OpenAI
+    FB_PAGE_TOKEN       → o token da sua página do Facebook
+    FB_PAGE_ID          → o ID numérico da sua página do Facebook
+
+---
+
+## Passo 3 — Testar antes de ativar
+
+Para fazer um post de teste agora (sem esperar o horário agendado):
+
+    python automacao.py --testar
+
+Verifique se o post apareceu na sua página do Facebook e se a imagem ficou boa.
+
+---
+
+## Passo 4 — Ativar o sistema
+
+Para deixar rodando automaticamente (posts às 09:00, 13:00 e 19:00):
+
+    python automacao.py
+
+Deixe o terminal aberto. O sistema vai rodar até você fechar.
+
+---
+
+## Como deixar rodando sem precisar manter o terminal aberto (Windows)
+
+1. Crie um arquivo chamado `iniciar.bat` com o conteúdo:
+       pythonw automacao.py
+
+2. Coloque esse arquivo na pasta de inicialização do Windows:
+       C:\Users\SEU_USUARIO\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
+
+Assim o sistema inicia automaticamente quando você ligar o computador.
+
+---
+
+## Arquivos gerados pelo sistema
+
+- `imagens/`          → imagens de cada post gerado
+- `historico.json`    → registro de todos os posts publicados
+- `froio_automacao.log` → log completo de tudo que aconteceu
+
+---
+
+## Ajustes opcionais (no automacao.py)
+
+- `MIN_DESCONTO`  → desconto mínimo para publicar (padrão: 15%)
+- `MIN_VENDAS`    → vendas mínimas do produto (padrão: 50)
+- `MAX_PRECO`     → preço máximo em R$ (padrão: 2000)
+- `CATEGORIAS`    → lista de categorias do ML para buscar
+- Horários dos posts → linhas com `schedule.every().day.at(...)`

@@ -1,0 +1,28 @@
+# Credenciais e segredos - NUNCA subir para o GitHub
+config.env
+ml_cookies.txt
+
+# Estado local do bot / logs / cache
+automacao.pid
+*.log
+*.zip
+historico.json
+historico_dump.txt
+produtos_postados.json
+fila_instagram_backlog.json
+imagens/
+__pycache__/
+*.pyc
+
+# Páginas de debug/dump (arquivos grandes, só para depuração local)
+afiliados_debug.html
+ofertas_debug.html
+ofertas_logado.html
+
+# Arquivos de sessão/configuração do Claude
+.claude/
+.claudemedata.md
+.clauderc
+
+# Não utilizado
+gerar_token_ml.py
