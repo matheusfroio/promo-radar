@@ -444,6 +444,17 @@
   <div id="produtos-raw" style="display:none" aria-hidden="true">
 <!-- PRODUTOS_INICIO -->
   <div class="produto"
+    data-titulo="Tapete Decorativo Felpudo 2,00x1,50 Sala Quarto Escritório Cor Cinza Liso Pelo Alto Casa Laura Enxovais"
+    data-link="https://www.mercadolivre.com.br/p/MLB46020977?matt_tool=65970241&amp;matt_word=matheusfroio"
+    data-preco="59.90"
+    data-preco-original="115.90"
+    data-desconto="48"
+    data-categoria="Geral"
+    data-imagem="https://http2.mlstatic.com/D_NQ_NP_866258-MLA95942348415_102025-F.jpg"
+    data-loja="Mercado Livre"
+    data-timestamp="2026-06-14T14:01:18.650868+00:00">
+  </div>
+<div class="produto"
     data-titulo="Kit Relógio Condor Masculino Speed Prata - Co2117aw/k4v Prata Verde"
     data-link="https://www.mercadolivre.com.br/p/MLB58752624?matt_tool=65970241&amp;matt_word=matheusfroio"
     data-preco="186.99"
@@ -452,8 +463,7 @@
     data-categoria="Geral"
     data-imagem="https://http2.mlstatic.com/D_NQ_NP_934099-MLA100016305151_122025-F.jpg"
     data-timestamp="2026-06-13T22:04:18.404576+00:00">
-  </div>
-<div class="produto"
+  </div><div class="produto"
     data-titulo="Cadeira Escritório Ergonômica Giratória com Apoio Lombar da Python Fly"
     data-link="https://www.mercadolivre.com.br/p/MLB54575876?matt_tool=65970241&amp;matt_word=matheusfroio"
     data-preco="407.89"
@@ -561,6 +571,11 @@
     'Geral': '🛍️'
   };
 
+  const PREPOSICAO_LOJA = {
+    'Mercado Livre': 'no',
+    'Shopee': 'na'
+  };
+
   const state = {
     categoria: 'Todos',
     busca: '',
@@ -579,6 +594,7 @@
         desconto: parseInt(el.dataset.desconto) || 0,
         categoria: el.dataset.categoria || 'Geral',
         imagem: el.dataset.imagem || '',
+        loja: el.dataset.loja || 'Mercado Livre',
         timestamp: el.dataset.timestamp || new Date().toISOString()
       });
     });
@@ -622,6 +638,8 @@
     const precoOriginal = produto.precoOriginal > 0
       ? `<span class="price-original">R$ ${formatarPreco(produto.precoOriginal)}</span>` : '';
 
+    const preposicaoLoja = PREPOSICAO_LOJA[produto.loja] || PREPOSICAO_LOJA['Mercado Livre'];
+
     return `
       <article class="card">
         <div class="card-media">
@@ -635,7 +653,7 @@
             ${precoOriginal}
             <span class="price-current">R$ ${formatarPreco(produto.preco)}</span>
           </div>
-          <a class="cta-btn" href="${escapeHtml(produto.link)}" target="_blank" rel="noopener sponsored">Ver oferta no Mercado Livre →</a>
+          <a class="cta-btn" href="${escapeHtml(produto.link)}" target="_blank" rel="noopener sponsored">Ver oferta ${preposicaoLoja} ${escapeHtml(produto.loja)} →</a>
           <span class="timestamp">${tempoRelativo(produto.timestamp)}</span>
         </div>
       </article>
