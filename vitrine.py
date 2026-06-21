@@ -41,6 +41,8 @@ CATEGORIAS_VALIDAS = {
     "Eletrônicos", "Moda", "Casa", "Esporte", "Beleza", "Geral"
 }
 
+LOJAS_VALIDAS = {"Mercado Livre", "Shopee"}
+
 # Mapeia o domain_id da categoria do Mercado Livre (automacao.py) para uma
 # das categorias exibidas na vitrine.
 CATEGORIA_ML_PARA_SITE = {
@@ -138,6 +140,7 @@ def _montar_card(
     imagem_url: str,
     preco_original: float,
     desconto: int,
+    loja: str,
 ) -> str:
     timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -150,6 +153,7 @@ def _montar_card(
         f'    data-desconto="{int(desconto)}"\n'
         f'    data-categoria="{_escapar(categoria)}"\n'
         f'    data-imagem="{_escapar(imagem_url)}"\n'
+        f'    data-loja="{_escapar(loja)}"\n'
         f'    data-timestamp="{timestamp}">\n'
         '  </div>\n'
     )
@@ -212,6 +216,7 @@ def adicionar_produto(
     imagem_url: str = "",
     preco_original: float = 0,
     desconto: int = 0,
+    loja: str = "Mercado Livre",
     auto_push: bool = True,
 ) -> bool:
     """
@@ -219,7 +224,7 @@ def adicionar_produto(
 
     Parametros:
         titulo: nome do produto exibido no card.
-        link_afiliado: URL do link de afiliado do Mercado Livre.
+        link_afiliado: URL do link de afiliado (Mercado Livre ou Shopee).
         preco: preco atual do produto.
         categoria: uma das categorias suportadas (Eletrônicos, Moda, Casa,
                    Esporte, Beleza, Geral). Padrao: "Geral".
@@ -227,6 +232,8 @@ def adicionar_produto(
                     emoji de fallback baseado na categoria.
         preco_original: preco "de" (riscado). Se 0, nao exibe.
         desconto: percentual de desconto (inteiro). Se 0, nao exibe badge.
+        loja: "Mercado Livre" ou "Shopee" — define o texto do botao de oferta.
+              Padrao: "Mercado Livre".
         auto_push: se True, executa git add/commit/push automaticamente.
 
     Retorna:
@@ -249,6 +256,9 @@ def adicionar_produto(
     if categoria not in CATEGORIAS_VALIDAS:
         categoria = "Geral"
 
+    if loja not in LOJAS_VALIDAS:
+        loja = "Mercado Livre"
+
     conteudo = _ler_index()
 
     produtos_existentes = _extrair_produtos_existentes(conteudo)
@@ -261,6 +271,7 @@ def adicionar_produto(
         imagem_url=imagem_url.strip(),
         preco_original=preco_original,
         desconto=desconto,
+        loja=loja,
     )
 
     produtos_atualizados = [novo_card] + produtos_existentes
@@ -288,19 +299,124 @@ def adicionar_produto(
     return True
 
 
+def remover_produto(numero: int = None, titulo_parcial: str = None, auto_push: bool = True) -> bool:
+    """Remove um produto da vitrine pelo numero (posicao) ou trecho do titulo."""
+    conteudo = _ler_index()
+    produtos = _extrair_produtos_existentes(conteudo)
+
+    if not produtos:
+        print("Nenhum produto na vitrine.")
+        return False
+
+    if numero is not None:
+        if numero < 1 or numero > len(produtos):
+            raise ValueError(f"Numero invalido. Use de 1 a {len(produtos)}.")
+        removido = produtos.pop(numero - 1)
+    elif titulo_parcial:
+        titulo_lower = titulo_parcial.lower()
+        idx = None
+        for i, p in enumerate(produtos):
+            match = re.search(r'data-titulo="([^"]*)"', p)
+            if match and titulo_lower in match.group(1).lower():
+                idx = i
+                break
+        if idx is None:
+            print(f"Nenhum produto encontrado com '{titulo_parcial}'.")
+            return False
+        removido = produtos.pop(idx)
+    else:
+        raise ValueError("Informe 'numero' ou 'titulo_parcial'.")
+
+    match = re.search(r'data-titulo="([^"]*)"', removido)
+    titulo_removido = match.group(1) if match else "desconhecido"
+
+    novo_bloco = "\n" + "".join(produtos) if produtos else "\n"
+    inicio = conteudo.find(MARCADOR_INICIO) + len(MARCADOR_INICIO)
+    fim = conteudo.find(MARCADOR_FIM)
+    novo_conteudo = conteudo[:inicio] + novo_bloco + conteudo[fim:]
+
+    INDEX_PATH.write_text(novo_conteudo, encoding="utf-8")
+    print(f"Removido: {titulo_removido}")
+
+    if auto_push:
+        _git_push(f"remover: {titulo_removido[:60]}")
+
+    return True
+
+
+def listar_produtos() -> list:
+    """Lista todos os produtos da vitrine com numero, titulo e preco."""
+    conteudo = _ler_index()
+    produtos = _extrair_produtos_existentes(conteudo)
+    lista = []
+    for i, p in enumerate(produtos, 1):
+        titulo = re.search(r'data-titulo="([^"]*)"', p)
+        preco = re.search(r'data-preco="([^"]*)"', p)
+        loja = re.search(r'data-loja="([^"]*)"', p)
+        lista.append({
+            "numero": i,
+            "titulo": html.unescape(titulo.group(1)) if titulo else "?",
+            "preco": float(preco.group(1)) if preco else 0,
+            "loja": html.unescape(loja.group(1)) if loja else "?",
+        })
+    return lista
+
+
 # ---------------------------------------------------------------------------
-# Execucao direta para teste manual
+# Execucao direta — gerenciador interativo
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    adicionar_produto(
-        titulo="Produto de teste - Fone Bluetooth",
-        link_afiliado="https://www.mercadolivre.com.br/sec/exemplo",
-        preco=79.90,
-        preco_original=119.90,
-        desconto=33,
-        categoria="Eletrônicos",
-        imagem_url="",
-        auto_push=False,
-    )
-    print("Produto de teste adicionado com sucesso (sem push).")
+    import sys
+
+    def _menu():
+        print("\n===== GERENCIADOR DA VITRINE =====")
+        print("1 - Listar produtos")
+        print("2 - Remover produto por número")
+        print("3 - Buscar e remover por nome")
+        print("0 - Sair")
+        return input("\nEscolha: ").strip()
+
+    while True:
+        opcao = _menu()
+
+        if opcao == "0":
+            print("Saindo.")
+            break
+
+        elif opcao == "1":
+            itens = listar_produtos()
+            if not itens:
+                print("\nVitrine vazia.")
+            else:
+                print(f"\n{len(itens)} produto(s):\n")
+                for item in itens:
+                    print(f"  {item['numero']:>2}. [{item['loja']}] R${item['preco']:.2f} — {item['titulo'][:80]}")
+
+        elif opcao == "2":
+            itens = listar_produtos()
+            if not itens:
+                print("\nVitrine vazia.")
+                continue
+            print(f"\n{len(itens)} produto(s):\n")
+            for item in itens:
+                print(f"  {item['numero']:>2}. [{item['loja']}] R${item['preco']:.2f} — {item['titulo'][:80]}")
+            num = input("\nNúmero do produto para remover (0 = cancelar): ").strip()
+            if num == "0":
+                continue
+            try:
+                remover_produto(numero=int(num))
+            except Exception as e:
+                print(f"Erro: {e}")
+
+        elif opcao == "3":
+            busca = input("Digite parte do nome do produto: ").strip()
+            if not busca:
+                continue
+            try:
+                remover_produto(titulo_parcial=busca)
+            except Exception as e:
+                print(f"Erro: {e}")
+
+        else:
+            print("Opção inválida.")
