@@ -27,24 +27,22 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
   display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;
 }
 .login-box {
-  background:var(--bg); border-radius:12px; padding:40px; max-width:420px; width:100%;
+  background:var(--bg); border-radius:12px; padding:40px; max-width:400px; width:100%;
   box-shadow:0 2px 12px rgba(0,0,0,0.08); text-align:center;
 }
 .login-box h1 { font-size:1.5rem; margin-bottom:8px; }
 .login-box p { color:var(--text2); font-size:0.9rem; margin-bottom:24px; }
-.login-box .sub { color:var(--text2); font-size:0.78rem; margin-bottom:16px; text-align:left; }
 .login-box input {
   width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:8px;
-  font-size:1rem; font-family:inherit; margin-bottom:12px; outline:none;
+  font-size:1rem; font-family:inherit; margin-bottom:16px; outline:none;
 }
 .login-box input:focus { border-color:var(--accent); }
 .login-box button {
   width:100%; padding:12px; background:var(--accent); color:#fff; border:none;
-  border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; margin-top:4px;
+  border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer;
 }
 .login-box button:hover { background:var(--accent-hover); }
 .login-error { color:var(--danger); font-size:0.85rem; margin-top:8px; display:none; }
-.token-saved { color:var(--success); font-size:0.8rem; margin-bottom:8px; }
 
 .painel { display:none; max-width:900px; margin:0 auto; padding:20px; }
 .painel-header {
@@ -53,12 +51,11 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
 }
 .painel-header h1 { font-size:1.3rem; }
 .painel-header .info { color:var(--text2); font-size:0.85rem; }
-.header-btns { display:flex; gap:8px; }
-.btn-sair, .btn-token {
+.btn-sair {
   padding:8px 16px; background:var(--surface); border:1px solid var(--border);
   border-radius:8px; cursor:pointer; font-size:0.85rem; font-family:inherit;
 }
-.btn-sair:hover, .btn-token:hover { background:var(--border); }
+.btn-sair:hover { background:var(--border); }
 
 .produto-card {
   background:var(--bg); border-radius:10px; padding:16px; margin-bottom:12px;
@@ -100,7 +97,6 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
   .produto-card img, .produto-card .img-placeholder { width:50px; height:50px; }
   .produto-info .titulo { font-size:0.82rem; }
   .painel-header { flex-direction:column; gap:10px; text-align:center; }
-  .header-btns { justify-content:center; }
 }
 </style>
 </head>
@@ -111,9 +107,8 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
     <h1>Promo Radar</h1>
     <p>Painel de administração</p>
     <input type="password" id="senhaInput" placeholder="Senha" autocomplete="off">
-    <div id="tokenArea"></div>
     <button onclick="entrar()">Entrar</button>
-    <div class="login-error" id="loginError"></div>
+    <div class="login-error" id="loginError">Senha incorreta.</div>
   </div>
 </div>
 
@@ -123,10 +118,7 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
       <h1>Painel Admin</h1>
       <div class="info" id="contagem"></div>
     </div>
-    <div class="header-btns">
-      <button class="btn-token" onclick="trocarToken()">Trocar token</button>
-      <button class="btn-sair" onclick="sair()">Sair</button>
-    </div>
+    <button class="btn-sair" onclick="sair()">Sair</button>
   </div>
   <div class="status-msg" id="statusMsg"></div>
   <div id="listaProdutos"><div class="loading">Carregando produtos...</div></div>
@@ -137,7 +129,8 @@ const REPO_OWNER = 'matheusfroio';
 const REPO_NAME = 'promo-radar';
 const FILE_PATH = 'index.html';
 const SENHA_HASH = '4333d6bdfad43fe6229ded072843715321a2a916049414dd6bac50b712ef3c79';
-const TOKEN_KEY = 'promo_radar_gh_token';
+const ENC_SALT = '4Hp2r5GX53amO3FHFmoqEQ==';
+const ENC_DATA = 'w7S7sN6T+ixSeCw7ZFyygNJGsdVIErMZwTx5e3iGiBrrkPu/yJH7Jg==';
 
 let githubToken = '';
 let fileSha = '';
@@ -150,16 +143,17 @@ function sha256(str) {
   );
 }
 
-function renderTokenArea() {
-  const area = document.getElementById('tokenArea');
-  const saved = localStorage.getItem(TOKEN_KEY);
-  if (saved) {
-    area.innerHTML = '<div class="token-saved">Token GitHub salvo. Pronto para usar.</div>';
-  } else {
-    area.innerHTML =
-      '<div class="sub">Primeira vez? Cole seu token do GitHub abaixo.<br>Ele fica salvo no navegador — só precisa fazer isso uma vez.</div>' +
-      '<input type="password" id="tokenInput" placeholder="Token GitHub (ghp_...)" autocomplete="off">';
+async function decryptToken(senha) {
+  const salt = Uint8Array.from(atob(ENC_SALT), c => c.charCodeAt(0));
+  const enc = Uint8Array.from(atob(ENC_DATA), c => c.charCodeAt(0));
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(senha), 'PBKDF2', false, ['deriveBits']);
+  const keyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+  const keyBytes = new Uint8Array(keyBits);
+  const decrypted = new Uint8Array(enc.length);
+  for (let i = 0; i < enc.length; i++) {
+    decrypted[i] = enc[i] ^ keyBytes[i % keyBytes.length];
   }
+  return new TextDecoder().decode(decrypted);
 }
 
 async function entrar() {
@@ -168,26 +162,11 @@ async function entrar() {
 
   const hash = await sha256(senha);
   if (hash !== SENHA_HASH) {
-    const err = document.getElementById('loginError');
-    err.textContent = 'Senha incorreta.';
-    err.style.display = 'block';
+    document.getElementById('loginError').style.display = 'block';
     return;
   }
 
-  const tokenInput = document.getElementById('tokenInput');
-  const savedToken = localStorage.getItem(TOKEN_KEY);
-
-  if (tokenInput && tokenInput.value.trim()) {
-    githubToken = tokenInput.value.trim();
-    localStorage.setItem(TOKEN_KEY, githubToken);
-  } else if (savedToken) {
-    githubToken = savedToken;
-  } else {
-    const err = document.getElementById('loginError');
-    err.textContent = 'Cole o token do GitHub no campo acima.';
-    err.style.display = 'block';
-    return;
-  }
+  githubToken = await decryptToken(senha);
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('painel').style.display = 'block';
@@ -206,17 +185,6 @@ function sair() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('senhaInput').value = '';
   document.getElementById('loginError').style.display = 'none';
-  renderTokenArea();
-}
-
-function trocarToken() {
-  const novo = prompt('Cole o novo token do GitHub:');
-  if (novo && novo.trim()) {
-    githubToken = novo.trim();
-    localStorage.setItem(TOKEN_KEY, githubToken);
-    alert('Token atualizado!');
-    carregarProdutos();
-  }
 }
 
 async function carregarProdutos() {
@@ -229,8 +197,7 @@ async function carregarProdutos() {
     });
 
     if (resp.status === 401 || resp.status === 403) {
-      localStorage.removeItem(TOKEN_KEY);
-      throw new Error('Token inválido ou expirado. Faça login novamente e cole um novo token.');
+      throw new Error('Token expirado. Entre em contato com o administrador.');
     }
     if (!resp.ok) throw new Error('Erro ao acessar o repositório');
 
@@ -361,8 +328,6 @@ function escapeHtml(str) {
   d.textContent = str;
   return d.innerHTML;
 }
-
-renderTokenArea();
 </script>
 </body>
 </html>
