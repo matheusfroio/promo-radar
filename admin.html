@@ -51,11 +51,17 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
 }
 .painel-header h1 { font-size:1.3rem; }
 .painel-header .info { color:var(--text2); font-size:0.85rem; }
+.header-btns { display:flex; gap:8px; }
 .btn-sair {
   padding:8px 16px; background:var(--surface); border:1px solid var(--border);
   border-radius:8px; cursor:pointer; font-size:0.85rem; font-family:inherit;
 }
 .btn-sair:hover { background:var(--border); }
+.btn-adicionar {
+  padding:8px 16px; background:var(--accent); color:#fff; border:none;
+  border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; font-family:inherit;
+}
+.btn-adicionar:hover { background:var(--accent-hover); }
 
 .produto-card {
   background:var(--bg); border-radius:10px; padding:16px; margin-bottom:12px;
@@ -76,12 +82,47 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
 }
 .produto-info .detalhes { font-size:0.8rem; color:var(--text2); }
 .produto-info .detalhes span { margin-right:12px; }
+.card-btns { display:flex; flex-direction:column; gap:6px; }
+.btn-editar {
+  padding:8px 14px; background:var(--accent); color:#fff; border:none;
+  border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; white-space:nowrap;
+}
+.btn-editar:hover { background:var(--accent-hover); }
 .btn-remover {
   padding:8px 14px; background:var(--danger); color:#fff; border:none;
   border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; white-space:nowrap;
 }
 .btn-remover:hover { background:var(--danger-hover); }
-.btn-remover:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-remover:disabled, .btn-editar:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* MODAL */
+.modal-overlay {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; padding:20px;
+}
+.modal-overlay.ativo { display:flex; }
+.modal {
+  background:var(--bg); border-radius:12px; padding:28px; max-width:500px; width:100%;
+  box-shadow:0 8px 30px rgba(0,0,0,0.15); max-height:90vh; overflow-y:auto;
+}
+.modal h2 { font-size:1.2rem; margin-bottom:20px; }
+.modal label { display:block; font-size:0.85rem; font-weight:500; margin-bottom:4px; color:var(--text); }
+.modal input, .modal select {
+  width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px;
+  font-size:0.9rem; font-family:inherit; margin-bottom:14px; outline:none;
+}
+.modal input:focus, .modal select:focus { border-color:var(--accent); }
+.modal .campo-obs { font-size:0.75rem; color:var(--text2); margin-top:-10px; margin-bottom:14px; }
+.modal-btns { display:flex; gap:10px; margin-top:8px; }
+.modal-btns button {
+  flex:1; padding:12px; border:none; border-radius:8px; font-size:0.95rem;
+  font-weight:600; cursor:pointer; font-family:inherit;
+}
+.btn-salvar { background:var(--accent); color:#fff; }
+.btn-salvar:hover { background:var(--accent-hover); }
+.btn-salvar:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-cancelar { background:var(--surface); color:var(--text); border:1px solid var(--border) !important; }
+.btn-cancelar:hover { background:var(--border); }
 
 .status-msg {
   text-align:center; padding:16px; border-radius:10px; margin-bottom:16px;
@@ -97,6 +138,8 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
   .produto-card img, .produto-card .img-placeholder { width:50px; height:50px; }
   .produto-info .titulo { font-size:0.82rem; }
   .painel-header { flex-direction:column; gap:10px; text-align:center; }
+  .header-btns { justify-content:center; }
+  .card-btns { flex-direction:row; }
 }
 </style>
 </head>
@@ -118,10 +161,61 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
       <h1>Painel Admin</h1>
       <div class="info" id="contagem"></div>
     </div>
-    <button class="btn-sair" onclick="sair()">Sair</button>
+    <div class="header-btns">
+      <button class="btn-adicionar" onclick="abrirModal()">+ Adicionar</button>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
   </div>
   <div class="status-msg" id="statusMsg"></div>
   <div id="listaProdutos"><div class="loading">Carregando produtos...</div></div>
+</div>
+
+<!-- MODAL ADICIONAR / EDITAR -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitulo">Adicionar produto</h2>
+    <label>Nome do produto *</label>
+    <input type="text" id="mTitulo" placeholder="Ex: Fone Bluetooth XYZ">
+
+    <label>Link do produto (afiliado) *</label>
+    <input type="url" id="mLink" placeholder="https://...">
+
+    <label>Preço atual (R$) *</label>
+    <input type="number" id="mPreco" step="0.01" min="0" placeholder="89.90">
+
+    <label>Preço original (R$)</label>
+    <input type="number" id="mPrecoOriginal" step="0.01" min="0" placeholder="129.90">
+    <div class="campo-obs">Preço antes do desconto. Deixe vazio se não tiver.</div>
+
+    <label>Desconto (%)</label>
+    <input type="number" id="mDesconto" min="0" max="99" placeholder="30">
+    <div class="campo-obs">Deixe vazio se não tiver desconto.</div>
+
+    <label>URL da imagem</label>
+    <input type="url" id="mImagem" placeholder="https://...jpg">
+    <div class="campo-obs">Cole o link da foto do produto. Deixe vazio para usar ícone padrão.</div>
+
+    <label>Categoria</label>
+    <select id="mCategoria">
+      <option value="Geral">Geral</option>
+      <option value="Eletrônicos">Eletrônicos</option>
+      <option value="Moda">Moda</option>
+      <option value="Casa">Casa</option>
+      <option value="Esporte">Esporte</option>
+      <option value="Beleza">Beleza</option>
+    </select>
+
+    <label>Loja</label>
+    <select id="mLoja">
+      <option value="Mercado Livre">Mercado Livre</option>
+      <option value="Shopee">Shopee</option>
+    </select>
+
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-salvar" id="btnSalvar" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -134,38 +228,183 @@ const TK = [103,104,112,95,97,84,117,66,97,110,118,103,88,80,53,113,81,118,105,1
 let githubToken = '';
 let fileSha = '';
 let fileContent = '';
+let editandoIndex = -1; // -1 = adicionando, >= 0 = editando
 
 async function entrar() {
   const senha = document.getElementById('senhaInput').value.trim();
   if (!senha) return;
-
   const senhaBytes = Array.from(new TextEncoder().encode(senha));
   if (senhaBytes.length !== SENHA_CORRETA.length || !senhaBytes.every((b, i) => b === SENHA_CORRETA[i])) {
     document.getElementById('loginError').style.display = 'block';
     return;
   }
-
   githubToken = String.fromCharCode(...TK);
-
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('painel').style.display = 'block';
   carregarProdutos();
 }
 
-document.getElementById('senhaInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') entrar();
-});
+document.getElementById('senhaInput').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
 
 function sair() {
-  githubToken = '';
-  fileSha = '';
-  fileContent = '';
+  githubToken = ''; fileSha = ''; fileContent = '';
   document.getElementById('painel').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('senhaInput').value = '';
   document.getElementById('loginError').style.display = 'none';
 }
 
+// --- MODAL ---
+function abrirModal(index) {
+  editandoIndex = (index !== undefined) ? index : -1;
+  document.getElementById('modalTitulo').textContent = editandoIndex >= 0 ? 'Editar produto' : 'Adicionar produto';
+  document.getElementById('btnSalvar').textContent = editandoIndex >= 0 ? 'Salvar alterações' : 'Adicionar';
+
+  if (editandoIndex >= 0) {
+    const produtos = extrairProdutosDoConteudo();
+    const p = produtos[index];
+    const get = (attr) => { const m = p.match(new RegExp('data-' + attr + '="([^"]*)"')); return m ? m[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#x27;/g,"'") : ''; };
+    document.getElementById('mTitulo').value = get('titulo');
+    document.getElementById('mLink').value = get('link');
+    document.getElementById('mPreco').value = get('preco');
+    document.getElementById('mPrecoOriginal').value = get('preco-original') !== '0.00' ? get('preco-original') : '';
+    document.getElementById('mDesconto').value = get('desconto') !== '0' ? get('desconto') : '';
+    document.getElementById('mImagem').value = get('imagem');
+    document.getElementById('mCategoria').value = get('categoria') || 'Geral';
+    document.getElementById('mLoja').value = get('loja') || 'Mercado Livre';
+  } else {
+    document.getElementById('mTitulo').value = '';
+    document.getElementById('mLink').value = '';
+    document.getElementById('mPreco').value = '';
+    document.getElementById('mPrecoOriginal').value = '';
+    document.getElementById('mDesconto').value = '';
+    document.getElementById('mImagem').value = '';
+    document.getElementById('mCategoria').value = 'Geral';
+    document.getElementById('mLoja').value = 'Mercado Livre';
+  }
+
+  document.getElementById('modalOverlay').classList.add('ativo');
+}
+
+function fecharModal() {
+  document.getElementById('modalOverlay').classList.remove('ativo');
+  editandoIndex = -1;
+}
+
+function escAttr(str) {
+  return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function montarCardHtml(dados) {
+  return '  <div class="produto"\n' +
+    '    data-titulo="' + escAttr(dados.titulo) + '"\n' +
+    '    data-link="' + escAttr(dados.link) + '"\n' +
+    '    data-preco="' + parseFloat(dados.preco).toFixed(2) + '"\n' +
+    '    data-preco-original="' + parseFloat(dados.precoOriginal || 0).toFixed(2) + '"\n' +
+    '    data-desconto="' + parseInt(dados.desconto || 0) + '"\n' +
+    '    data-categoria="' + escAttr(dados.categoria) + '"\n' +
+    '    data-imagem="' + escAttr(dados.imagem) + '"\n' +
+    '    data-loja="' + escAttr(dados.loja) + '"\n' +
+    '    data-timestamp="' + dados.timestamp + '">\n' +
+    '  </div>\n';
+}
+
+function extrairProdutosDoConteudo() {
+  const inicioMarcador = '<!-- PRODUTOS_INICIO -->';
+  const fimMarcador = '<!-- PRODUTOS_FIM -->';
+  const idxInicio = fileContent.indexOf(inicioMarcador);
+  const idxFim = fileContent.indexOf(fimMarcador);
+  if (idxInicio === -1 || idxFim === -1) return [];
+  const bloco = fileContent.substring(idxInicio + inicioMarcador.length, idxFim);
+  const regex = /<div class="produto"[\s\S]*?<\/div>\s*/g;
+  const produtos = [];
+  let match;
+  while ((match = regex.exec(bloco)) !== null) produtos.push(match[0]);
+  return produtos;
+}
+
+function reconstruirConteudo(produtos) {
+  const inicioMarcador = '<!-- PRODUTOS_INICIO -->';
+  const fimMarcador = '<!-- PRODUTOS_FIM -->';
+  const antes = fileContent.substring(0, fileContent.indexOf(inicioMarcador) + inicioMarcador.length);
+  const depois = fileContent.substring(fileContent.indexOf(fimMarcador));
+  const novoBloco = produtos.length > 0 ? '\n' + produtos.join('') : '\n';
+  return antes + novoBloco + depois;
+}
+
+async function salvarNoGithub(novoConteudo, mensagem) {
+  const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${githubToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: mensagem,
+      content: btoa(unescape(encodeURIComponent(novoConteudo))),
+      sha: fileSha
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.message || 'Erro ao salvar');
+  }
+}
+
+async function salvarProduto() {
+  const titulo = document.getElementById('mTitulo').value.trim();
+  const link = document.getElementById('mLink').value.trim();
+  const preco = document.getElementById('mPreco').value.trim();
+
+  if (!titulo) { alert('Preencha o nome do produto.'); return; }
+  if (!link) { alert('Preencha o link do produto.'); return; }
+  if (!preco || parseFloat(preco) <= 0) { alert('Preencha o preço.'); return; }
+
+  const btn = document.getElementById('btnSalvar');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const dados = {
+    titulo: titulo,
+    link: link,
+    preco: preco,
+    precoOriginal: document.getElementById('mPrecoOriginal').value.trim(),
+    desconto: document.getElementById('mDesconto').value.trim(),
+    imagem: document.getElementById('mImagem').value.trim(),
+    categoria: document.getElementById('mCategoria').value,
+    loja: document.getElementById('mLoja').value,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    const produtos = extrairProdutosDoConteudo();
+
+    if (editandoIndex >= 0) {
+      const tsMatch = produtos[editandoIndex].match(/data-timestamp="([^"]*)"/);
+      if (tsMatch) dados.timestamp = tsMatch[1];
+      produtos[editandoIndex] = montarCardHtml(dados);
+      var mensagem = `editar: ${titulo.substring(0, 60)}`;
+    } else {
+      produtos.unshift(montarCardHtml(dados));
+      if (produtos.length > 40) produtos.length = 40;
+      var mensagem = `produto: ${titulo.substring(0, 60)}`;
+    }
+
+    const novoConteudo = reconstruirConteudo(produtos);
+    await salvarNoGithub(novoConteudo, mensagem);
+
+    fecharModal();
+    mostrarStatus(editandoIndex >= 0 ? 'Produto editado com sucesso!' : 'Produto adicionado com sucesso!', 'ok');
+    await carregarProdutos();
+  } catch (e) {
+    mostrarStatus(`Erro: ${e.message}`, 'erro');
+    btn.disabled = false;
+    btn.textContent = editandoIndex >= 0 ? 'Salvar alterações' : 'Adicionar';
+  }
+}
+
+// --- CARREGAR / REMOVER ---
 async function carregarProdutos() {
   const lista = document.getElementById('listaProdutos');
   lista.innerHTML = '<div class="loading">Carregando produtos...</div>';
@@ -175,9 +414,7 @@ async function carregarProdutos() {
       headers: { 'Authorization': `token ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
     });
 
-    if (resp.status === 401 || resp.status === 403) {
-      throw new Error('Token expirado. Entre em contato com o administrador.');
-    }
+    if (resp.status === 401 || resp.status === 403) throw new Error('Token expirado. Entre em contato com o administrador.');
     if (!resp.ok) throw new Error('Erro ao acessar o repositório');
 
     const data = await resp.json();
@@ -221,7 +458,10 @@ async function carregarProdutos() {
               <span>${escapeHtml(categoria)}</span>
             </div>
           </div>
-          <button class="btn-remover" onclick="removerProduto(${i}, this)">Remover</button>
+          <div class="card-btns">
+            <button class="btn-editar" onclick="abrirModal(${i})">Editar</button>
+            <button class="btn-remover" onclick="removerProduto(${i}, this)">Remover</button>
+          </div>
         </div>`;
     });
 
@@ -239,54 +479,17 @@ async function removerProduto(index, btn) {
   mostrarStatus('', '');
 
   try {
-    const inicioMarcador = '<!-- PRODUTOS_INICIO -->';
-    const fimMarcador = '<!-- PRODUTOS_FIM -->';
-
-    const idxInicio = fileContent.indexOf(inicioMarcador);
-    const idxFim = fileContent.indexOf(fimMarcador);
-    if (idxInicio === -1 || idxFim === -1) throw new Error('Marcadores não encontrados no HTML');
-
-    const antes = fileContent.substring(0, idxInicio + inicioMarcador.length);
-    const depois = fileContent.substring(idxFim);
-    const bloco = fileContent.substring(idxInicio + inicioMarcador.length, idxFim);
-
-    const regex = /<div class="produto"[\s\S]*?<\/div>\s*/g;
-    const produtos = [];
-    let match;
-    while ((match = regex.exec(bloco)) !== null) {
-      produtos.push(match[0]);
-    }
-
+    const produtos = extrairProdutosDoConteudo();
     if (index < 0 || index >= produtos.length) throw new Error('Produto não encontrado');
 
     const tituloMatch = produtos[index].match(/data-titulo="([^"]*)"/);
     const titulo = tituloMatch ? tituloMatch[1] : 'produto';
 
     produtos.splice(index, 1);
+    const novoConteudo = reconstruirConteudo(produtos);
+    await salvarNoGithub(novoConteudo, `remover: ${titulo.substring(0, 60)}`);
 
-    const novoBloco = produtos.length > 0 ? '\n' + produtos.join('') : '\n';
-    const novoConteudo = antes + novoBloco + depois;
-
-    const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: `remover: ${titulo.substring(0, 60)}`,
-        content: btoa(unescape(encodeURIComponent(novoConteudo))),
-        sha: fileSha
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.message || 'Erro ao salvar');
-    }
-
-    mostrarStatus(`Removido com sucesso!`, 'ok');
+    mostrarStatus('Removido com sucesso!', 'ok');
     await carregarProdutos();
   } catch (e) {
     mostrarStatus(`Erro: ${e.message}`, 'erro');
