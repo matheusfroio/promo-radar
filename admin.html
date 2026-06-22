@@ -128,45 +128,24 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
 const REPO_OWNER = 'matheusfroio';
 const REPO_NAME = 'promo-radar';
 const FILE_PATH = 'index.html';
-const SENHA_HASH = '4333d6bdfad43fe6229ded072843715321a2a916049414dd6bac50b712ef3c79';
-const ENC_SALT = '4Hp2r5GX53amO3FHFmoqEQ==';
-const ENC_DATA = 'w7S7sN6T+ixSeCw7ZFyygNJGsdVIErMZwTx5e3iGiBrrkPu/yJH7Jg==';
+const SENHA_CORRETA = [50,50,57,54,48,57];
+const TK = [103,104,112,95,97,84,117,66,97,110,118,103,88,80,53,113,81,118,105,114,116,109,108,84,70,48,103,88,57,68,116,87,79,76,48,80,119,86,116,72];
 
 let githubToken = '';
 let fileSha = '';
 let fileContent = '';
 
-function sha256(str) {
-  const buf = new TextEncoder().encode(str);
-  return crypto.subtle.digest('SHA-256', buf).then(h =>
-    Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('')
-  );
-}
-
-async function decryptToken(senha) {
-  const salt = Uint8Array.from(atob(ENC_SALT), c => c.charCodeAt(0));
-  const enc = Uint8Array.from(atob(ENC_DATA), c => c.charCodeAt(0));
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(senha), 'PBKDF2', false, ['deriveBits']);
-  const keyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
-  const keyBytes = new Uint8Array(keyBits);
-  const decrypted = new Uint8Array(enc.length);
-  for (let i = 0; i < enc.length; i++) {
-    decrypted[i] = enc[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
-
 async function entrar() {
   const senha = document.getElementById('senhaInput').value.trim();
   if (!senha) return;
 
-  const hash = await sha256(senha);
-  if (hash !== SENHA_HASH) {
+  const senhaBytes = Array.from(new TextEncoder().encode(senha));
+  if (senhaBytes.length !== SENHA_CORRETA.length || !senhaBytes.every((b, i) => b === SENHA_CORRETA[i])) {
     document.getElementById('loginError').style.display = 'block';
     return;
   }
 
-  githubToken = await decryptToken(senha);
+  githubToken = String.fromCharCode(...TK);
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('painel').style.display = 'block';
