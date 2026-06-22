@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Promo Radar</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --surface: #F7F8FA;
+  --accent: #FF6900;
+  --accent-hover: #E55D00;
+  --text: #1A1A1A;
+  --text2: #6B7280;
+  --border: #E5E7EB;
+  --danger: #DC2626;
+  --danger-hover: #B91C1C;
+  --success: #16A34A;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--text); min-height:100vh; }
+
+/* LOGIN */
+.login-container {
+  display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+}
+.login-box {
+  background:var(--bg); border-radius:12px; padding:40px; max-width:400px; width:100%;
+  box-shadow:0 2px 12px rgba(0,0,0,0.08); text-align:center;
+}
+.login-box h1 { font-size:1.5rem; margin-bottom:8px; }
+.login-box p { color:var(--text2); font-size:0.9rem; margin-bottom:24px; }
+.login-box input {
+  width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:8px;
+  font-size:1rem; font-family:inherit; margin-bottom:16px; outline:none;
+}
+.login-box input:focus { border-color:var(--accent); }
+.login-box button {
+  width:100%; padding:12px; background:var(--accent); color:#fff; border:none;
+  border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer;
+}
+.login-box button:hover { background:var(--accent-hover); }
+.login-error { color:var(--danger); font-size:0.85rem; margin-top:8px; display:none; }
+
+/* PAINEL */
+.painel { display:none; max-width:900px; margin:0 auto; padding:20px; }
+.painel-header {
+  background:var(--bg); border-radius:12px; padding:20px 24px; margin-bottom:20px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:space-between;
+}
+.painel-header h1 { font-size:1.3rem; }
+.painel-header .info { color:var(--text2); font-size:0.85rem; }
+.btn-sair {
+  padding:8px 16px; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; cursor:pointer; font-size:0.85rem; font-family:inherit;
+}
+.btn-sair:hover { background:var(--border); }
+
+.produto-card {
+  background:var(--bg); border-radius:10px; padding:16px; margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; align-items:center; gap:14px;
+}
+.produto-card img {
+  width:70px; height:70px; object-fit:contain; border-radius:8px; background:var(--surface);
+  flex-shrink:0;
+}
+.produto-card .img-placeholder {
+  width:70px; height:70px; border-radius:8px; background:var(--surface);
+  display:flex; align-items:center; justify-content:center; font-size:1.8rem; flex-shrink:0;
+}
+.produto-info { flex:1; min-width:0; }
+.produto-info .titulo {
+  font-size:0.9rem; font-weight:500; margin-bottom:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.produto-info .detalhes { font-size:0.8rem; color:var(--text2); }
+.produto-info .detalhes span { margin-right:12px; }
+.btn-remover {
+  padding:8px 14px; background:var(--danger); color:#fff; border:none;
+  border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; white-space:nowrap;
+}
+.btn-remover:hover { background:var(--danger-hover); }
+.btn-remover:disabled { opacity:0.5; cursor:not-allowed; }
+
+.status-msg {
+  text-align:center; padding:16px; border-radius:10px; margin-bottom:16px;
+  font-size:0.9rem; display:none;
+}
+.status-msg.ok { display:block; background:#DCFCE7; color:var(--success); }
+.status-msg.erro { display:block; background:#FEE2E2; color:var(--danger); }
+
+.loading { text-align:center; padding:40px; color:var(--text2); }
+.vazio { text-align:center; padding:40px; color:var(--text2); font-size:0.95rem; }
+
+@media(max-width:600px) {
+  .produto-card img, .produto-card .img-placeholder { width:50px; height:50px; }
+  .produto-info .titulo { font-size:0.82rem; }
+  .painel-header { flex-direction:column; gap:10px; text-align:center; }
+}
+</style>
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div class="login-container" id="loginScreen">
+  <div class="login-box">
+    <h1>Promo Radar</h1>
+    <p>Painel de administração.<br>Digite a senha para acessar.</p>
+    <input type="password" id="senhaInput" placeholder="Senha" autocomplete="off">
+    <button onclick="entrar()">Entrar</button>
+    <div class="login-error" id="loginError">Senha incorreta.</div>
+  </div>
+</div>
+
+<!-- PAINEL ADMIN -->
+<div class="painel" id="painel">
+  <div class="painel-header">
+    <div>
+      <h1>Painel Admin</h1>
+      <div class="info" id="contagem"></div>
+    </div>
+    <button class="btn-sair" onclick="sair()">Sair</button>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+  <div id="listaProdutos"><div class="loading">Carregando produtos...</div></div>
+</div>
+
+<script>
+const REPO_OWNER = 'matheusfroio';
+const REPO_NAME = 'promo-radar';
+const FILE_PATH = 'index.html';
+const SENHA_HASH = '3907438109774ae6c7c468ed09005757de65b26d21d702b2e46232b451c95923';
+
+let githubToken = '';
+let fileSha = '';
+let fileContent = '';
+
+function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', buf).then(h => {
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
+  });
+}
+
+async function entrar() {
+  const senha = document.getElementById('senhaInput').value.trim();
+  if (!senha) return;
+
+  const hash = await sha256(senha);
+  if (hash !== SENHA_HASH) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+
+  githubToken = senha;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('painel').style.display = 'block';
+  carregarProdutos();
+}
+
+document.getElementById('senhaInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') entrar();
+});
+
+function sair() {
+  githubToken = '';
+  fileSha = '';
+  fileContent = '';
+  document.getElementById('painel').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('senhaInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+async function carregarProdutos() {
+  const lista = document.getElementById('listaProdutos');
+  lista.innerHTML = '<div class="loading">Carregando produtos...</div>';
+
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      headers: { 'Authorization': `token ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+
+    if (!resp.ok) throw new Error('Erro ao acessar o repositório');
+
+    const data = await resp.json();
+    fileSha = data.sha;
+    fileContent = atob(data.content.replace(/\n/g, ''));
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(fileContent, 'text/html');
+    const produtos = doc.querySelectorAll('#produtos-raw .produto');
+
+    if (produtos.length === 0) {
+      lista.innerHTML = '<div class="vazio">Nenhum produto na vitrine.</div>';
+      document.getElementById('contagem').textContent = '0 produtos';
+      return;
+    }
+
+    document.getElementById('contagem').textContent = `${produtos.length} produto(s)`;
+
+    let html = '';
+    produtos.forEach((p, i) => {
+      const titulo = p.dataset.titulo || '?';
+      const preco = parseFloat(p.dataset.preco) || 0;
+      const precoOrig = parseFloat(p.dataset.precoOriginal) || 0;
+      const desconto = parseInt(p.dataset.desconto) || 0;
+      const imagem = p.dataset.imagem || '';
+      const loja = p.dataset.loja || 'Mercado Livre';
+      const categoria = p.dataset.categoria || 'Geral';
+
+      const imgHtml = imagem
+        ? `<img src="${escapeHtml(imagem)}" alt="" onerror="this.outerHTML='<div class=img-placeholder>📦</div>'">`
+        : '<div class="img-placeholder">📦</div>';
+
+      html += `
+        <div class="produto-card" data-index="${i}">
+          ${imgHtml}
+          <div class="produto-info">
+            <div class="titulo" title="${escapeHtml(titulo)}">${escapeHtml(titulo)}</div>
+            <div class="detalhes">
+              <span>R$ ${preco.toFixed(2)}</span>
+              ${desconto > 0 ? `<span>-${desconto}%</span>` : ''}
+              <span>${escapeHtml(loja)}</span>
+              <span>${escapeHtml(categoria)}</span>
+            </div>
+          </div>
+          <button class="btn-remover" onclick="removerProduto(${i}, this)">Remover</button>
+        </div>`;
+    });
+
+    lista.innerHTML = html;
+  } catch (e) {
+    lista.innerHTML = `<div class="vazio">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+async function removerProduto(index, btn) {
+  if (!confirm('Tem certeza que deseja remover este produto do site?')) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Removendo...';
+  mostrarStatus('', '');
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(fileContent, 'text/html');
+    const produtos = doc.querySelectorAll('#produtos-raw .produto');
+
+    if (index < 0 || index >= produtos.length) throw new Error('Produto não encontrado');
+
+    const titulo = produtos[index].dataset.titulo || 'produto';
+    produtos[index].remove();
+
+    const serializer = new XMLSerializer();
+    let novoConteudo = '<!DOCTYPE html>\n' + serializer.serializeToString(doc.documentElement);
+
+    novoConteudo = novoConteudo
+      .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '')
+      .replace(/<\/br>/g, '')
+      .replace(/<\/img>/g, '')
+      .replace(/<\/input>/g, '')
+      .replace(/<\/meta>/g, '')
+      .replace(/<\/link>/g, '');
+
+    const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `remover: ${titulo.substring(0, 60)}`,
+        content: btoa(unescape(encodeURIComponent(novoConteudo))),
+        sha: fileSha
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.message || 'Erro ao salvar');
+    }
+
+    mostrarStatus(`"${titulo.substring(0, 50)}..." removido com sucesso!`, 'ok');
+    await carregarProdutos();
+  } catch (e) {
+    mostrarStatus(`Erro: ${e.message}`, 'erro');
+    btn.disabled = false;
+    btn.textContent = 'Remover';
+  }
+}
+
+function mostrarStatus(msg, tipo) {
+  const el = document.getElementById('statusMsg');
+  if (!msg) { el.className = 'status-msg'; el.textContent = ''; return; }
+  el.className = `status-msg ${tipo}`;
+  el.textContent = msg;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
