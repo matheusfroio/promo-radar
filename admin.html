@@ -412,6 +412,7 @@ async function salvarProduto() {
     try {
       btn.textContent = 'Enviando imagem...';
       imagemUrl = await uploadImagemGithub(imagemPendente);
+      await atualizarShaIndexHtml();
     } catch (e) {
       mostrarStatus('Erro ao enviar imagem: ' + e.message, 'erro');
       btn.disabled = false;
@@ -589,6 +590,16 @@ function previewImagem(input) {
 function toggleUrlManual() {
   const input = document.getElementById('mImagemUrl');
   input.style.display = input.style.display === 'none' ? 'block' : 'none';
+}
+
+async function atualizarShaIndexHtml() {
+  const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+    headers: { 'Authorization': `token ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!resp.ok) throw new Error('Erro ao atualizar SHA');
+  const data = await resp.json();
+  fileSha = data.sha;
+  fileContent = new TextDecoder().decode(Uint8Array.from(atob(data.content.replace(/\n/g, '')), c => c.charCodeAt(0)));
 }
 
 async function uploadImagemGithub(file) {
