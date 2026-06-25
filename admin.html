@@ -134,6 +134,20 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
 .loading { text-align:center; padding:40px; color:var(--text2); }
 .vazio { text-align:center; padding:40px; color:var(--text2); font-size:0.95rem; }
 
+.upload-area {
+  border:2px dashed var(--border); border-radius:10px; padding:24px; text-align:center;
+  cursor:pointer; margin-bottom:8px; transition:border-color 0.2s, background 0.2s;
+}
+.upload-area:hover, .upload-area.dragover { border-color:var(--accent); background:rgba(255,105,0,0.04); }
+.upload-icon { font-size:2rem; margin-bottom:6px; }
+.upload-text { font-size:0.9rem; font-weight:500; color:var(--text); }
+.upload-sub { font-size:0.75rem; color:var(--text2); margin-top:4px; }
+.upload-preview { max-width:100%; max-height:180px; border-radius:8px; margin-top:10px; object-fit:contain; }
+.upload-alt { font-size:0.8rem; color:var(--accent); margin-bottom:14px; }
+.upload-alt span { cursor:pointer; }
+.upload-alt input { margin-top:6px; width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.85rem; font-family:inherit; }
+.upload-progress { font-size:0.8rem; color:var(--text2); margin-top:6px; }
+
 @media(max-width:600px) {
   .produto-card img, .produto-card .img-placeholder { width:50px; height:50px; }
   .produto-info .titulo { font-size:0.82rem; }
@@ -191,9 +205,19 @@ body { font-family:'Inter',sans-serif; background:var(--surface); color:var(--te
     <input type="number" id="mDesconto" min="0" max="99" placeholder="30">
     <div class="campo-obs">Deixe vazio se não tiver desconto.</div>
 
-    <label>URL da imagem</label>
-    <input type="url" id="mImagem" placeholder="https://...jpg">
-    <div class="campo-obs">Cole o link da foto do produto. Deixe vazio para usar ícone padrão.</div>
+    <label>Imagem do produto</label>
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('mImagemFile').click()">
+      <div class="upload-icon" id="uploadIcon">📷</div>
+      <div class="upload-text" id="uploadText">Toque para escolher uma foto</div>
+      <div class="upload-sub">PC: explorador de arquivos · Celular: galeria ou câmera</div>
+      <img id="uploadPreview" class="upload-preview" style="display:none">
+    </div>
+    <input type="file" id="mImagemFile" accept="image/*" style="display:none" onchange="previewImagem(this)">
+    <input type="hidden" id="mImagem">
+    <div class="upload-alt">
+      <span onclick="toggleUrlManual()">ou colar link da imagem ▾</span>
+      <input type="url" id="mImagemUrl" placeholder="https://...jpg" style="display:none" oninput="document.getElementById('mImagem').value=this.value">
+    </div>
 
     <label>Categoria</label>
     <select id="mCategoria">
@@ -283,6 +307,23 @@ function abrirModal(index) {
     document.getElementById('mLoja').value = 'Mercado Livre';
   }
 
+  imagemPendente = null;
+  document.getElementById('mImagemFile').value = '';
+  document.getElementById('mImagemUrl').value = '';
+  document.getElementById('mImagemUrl').style.display = 'none';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('uploadIcon').style.display = 'block';
+  document.getElementById('uploadText').textContent = 'Toque para escolher uma foto';
+  document.getElementById('uploadArea').querySelector('.upload-sub').textContent = 'PC: explorador de arquivos · Celular: galeria ou câmera';
+
+  const imagemAtual = document.getElementById('mImagem').value;
+  if (imagemAtual && editandoIndex >= 0) {
+    document.getElementById('uploadPreview').src = imagemAtual;
+    document.getElementById('uploadPreview').style.display = 'block';
+    document.getElementById('uploadIcon').style.display = 'none';
+    document.getElementById('uploadText').textContent = 'Imagem atual — toque para trocar';
+  }
+
   document.getElementById('modalOverlay').classList.add('ativo');
 }
 
@@ -365,13 +406,26 @@ async function salvarProduto() {
   btn.disabled = true;
   btn.textContent = 'Salvando...';
 
+  let imagemUrl = document.getElementById('mImagem').value.trim();
+  if (imagemPendente) {
+    try {
+      btn.textContent = 'Enviando imagem...';
+      imagemUrl = await uploadImagemGithub(imagemPendente);
+    } catch (e) {
+      mostrarStatus('Erro ao enviar imagem: ' + e.message, 'erro');
+      btn.disabled = false;
+      btn.textContent = editandoIndex >= 0 ? 'Salvar alterações' : 'Adicionar';
+      return;
+    }
+  }
+
   const dados = {
     titulo: titulo,
     link: link,
     preco: preco,
     precoOriginal: document.getElementById('mPrecoOriginal').value.trim(),
     desconto: document.getElementById('mDesconto').value.trim(),
-    imagem: document.getElementById('mImagem').value.trim(),
+    imagem: imagemUrl,
     categoria: document.getElementById('mCategoria').value,
     loja: document.getElementById('mLoja').value,
     timestamp: new Date().toISOString()
@@ -394,6 +448,7 @@ async function salvarProduto() {
     const novoConteudo = reconstruirConteudo(produtos);
     await salvarNoGithub(novoConteudo, mensagem);
 
+    imagemPendente = null;
     fecharModal();
     mostrarStatus(editandoIndex >= 0 ? 'Produto editado com sucesso!' : 'Produto adicionado com sucesso!', 'ok');
     await carregarProdutos();
@@ -509,6 +564,74 @@ function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+// --- UPLOAD DE IMAGEM ---
+let imagemPendente = null;
+
+function previewImagem(input) {
+  const file = input.files[0];
+  if (!file) return;
+  imagemPendente = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('uploadPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('uploadIcon').style.display = 'none';
+    document.getElementById('uploadText').textContent = file.name;
+    document.getElementById('uploadArea').querySelector('.upload-sub').textContent = 'Toque para trocar a foto';
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleUrlManual() {
+  const input = document.getElementById('mImagemUrl');
+  input.style.display = input.style.display === 'none' ? 'block' : 'none';
+}
+
+async function uploadImagemGithub(file) {
+  const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+  const nome = 'vitrine_' + Date.now() + '.' + ext;
+  const path = 'imagens_vitrine/' + nome;
+
+  const base64 = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.readAsDataURL(file);
+  });
+
+  const resp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${githubToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: `imagem: ${nome}`,
+      content: base64
+    })
+  });
+
+  if (!resp.ok) throw new Error('Erro ao enviar imagem');
+  return `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${path}`;
+}
+
+// Drag and drop
+const uploadArea = document.getElementById('uploadArea');
+if (uploadArea) {
+  uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      document.getElementById('mImagemFile').files = e.dataTransfer.files;
+      previewImagem(document.getElementById('mImagemFile'));
+    }
+  });
 }
 </script>
 </body>
