@@ -283,7 +283,9 @@ function sair() {
 function abrirModal(index) {
   editandoIndex = (index !== undefined) ? index : -1;
   document.getElementById('modalTitulo').textContent = editandoIndex >= 0 ? 'Editar produto' : 'Adicionar produto';
-  document.getElementById('btnSalvar').textContent = editandoIndex >= 0 ? 'Salvar alterações' : 'Adicionar';
+  const btnSalvar = document.getElementById('btnSalvar');
+  btnSalvar.textContent = editandoIndex >= 0 ? 'Salvar alterações' : 'Adicionar';
+  btnSalvar.disabled = false;
 
   if (editandoIndex >= 0) {
     const produtos = extrairProdutosDoConteudo();
